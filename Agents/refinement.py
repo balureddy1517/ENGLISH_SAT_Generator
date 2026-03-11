@@ -1,0 +1,52 @@
+from tools.auth import client
+from src.stateflow import GraphState,QuestionStatus
+from src.content_structure import Craft_and_Structure
+import json
+
+
+def refinement_node(state: GraphState) -> GraphState:
+    creator = Craft_and_Structure()
+    
+    # Generate the prompt using the existing passage and the feedback captured earlier
+    prompt = creator.build_refinement_prompt(
+        passage=state["raw_passage"],
+        question_type=state["question_type"],
+        feedback=state["feedback"],
+        difficulty=state.get("difficulty", "Medium")
+    )
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4.1", 
+            messages=[{"role": "system", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        
+        data = json.loads(response.choices[0].message.content)
+        
+        return {
+            **state,
+            "raw_passage": data["passage"],
+            "status": QuestionStatus.REFINED.value, # Set to a status that routes back to the Question Agent
+            "feedback": None      # Clear feedback once addressed
+        }
+    except Exception as e:
+        return {**state, "status": QuestionStatus.FAILED.value}
+    
+
+
+if __name__=="__main__":
+
+    initial_state = {
+        "question_type": "Words in Context",
+        "difficulty": "Hard",
+        "raw_passage":"While early cartographers relied on rudimentary instruments and speculative reports, modern mapmakers employ sophisticated technology to render geographical data with remarkable precision. This transition did not merely enhance the accuracy of maps; it fundamentally redefined the discipline. The advent of satellite imagery obviated the need for conjecture, supplanting guesswork with empirical measurement. Consequently, the practice of cartography evolved from an art imbued with imaginative interpretation to a science governed by verifiable data.",
+        "feedback": "The passage does not contain a clear 'pivot word' with strong context clues that would support a high-quality 'Words in Context' question. While it uses some academic vocabulary, none of the terms are ambiguous or lend themselves to multiple plausible meanings within the given context."
+       
+    }
+
+    out=refinement_node(initial_state)
+    print(out)
+
+
+
