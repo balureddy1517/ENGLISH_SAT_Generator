@@ -2,11 +2,12 @@ from tools.auth import client
 from src.stateflow import GraphState,QuestionStatus
 from src.content_structure import Craft_and_Structure
 import json
+from src.utils import get_domain_handler
 
 
 def passage_generation_node(state: GraphState) -> GraphState:
 
-    creator = Craft_and_Structure()
+    creator = get_domain_handler(state["domain"])
     prompt = creator.build_prompt(state["question_type"], state["difficulty"])
     try:
         response = client.chat.completions.create(

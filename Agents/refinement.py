@@ -2,10 +2,11 @@ from tools.auth import client
 from src.stateflow import GraphState,QuestionStatus
 from src.content_structure import Craft_and_Structure
 import json
+from src.utils import get_domain_handler
 
 
 def refinement_node(state: GraphState) -> GraphState:
-    creator = Craft_and_Structure()
+    creator = get_domain_handler(state["domain"])
     
     # Generate the prompt using the existing passage and the feedback captured earlier
     prompt = creator.build_refinement_prompt(

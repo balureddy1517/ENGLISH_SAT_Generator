@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 
 class GraphState(TypedDict):
+    domain:str
     raw_passage: str        
     status: str   
     question_type: str 

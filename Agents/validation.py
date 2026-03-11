@@ -2,13 +2,13 @@ from tools.auth import client
 from src.stateflow import GraphState,QuestionStatus
 from src.content_structure import Craft_and_Structure
 import json
-
+from src.utils import get_domain_handler
 
 def validation_node(state: GraphState) -> dict:
 
 
-    creator = Craft_and_Structure()
-    q_type = state.get("question_type")
+    creator = get_domain_handler(state["domain"])
+    # q_type = state.get("question_type")
     
     prompt = creator.build_validation_prompt(
         passage=state["raw_passage"], 

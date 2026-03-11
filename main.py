@@ -53,11 +53,20 @@ app = workflow.compile()
 if __name__=="__main__":
 
     inputs = {
+        "domain": "Craft and Structure",   #. "Craft and Structure"
         "question_type": "Words in Context",
-        "difficulty": "Hard",
+        "difficulty": "Easy",
         "iterations": 0,
         "status": QuestionStatus.INITIALISED.value
     }
+
+#     inputs = {
+#     "domain": "Information and Ideas",
+#     "question_type": "Inference",
+#     "difficulty": "Hard",
+#     "iterations": 0,
+#     "status": QuestionStatus.INITIALISED.value
+# }
     current_state = inputs.copy()
 
     for step in app.stream(inputs):

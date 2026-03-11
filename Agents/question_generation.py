@@ -2,11 +2,12 @@ from tools.auth import client
 from src.stateflow import GraphState,QuestionStatus
 from src.content_structure import Craft_and_Structure
 import json
+from src.utils import get_domain_handler
 
 
 
 def question_generation_node(state: GraphState) -> dict: # Return a dict to merge
-    creator = Craft_and_Structure()
+    creator = get_domain_handler(state["domain"])
     q_type = state.get("question_type")
     
     prompt = creator.build_question_prompt(
