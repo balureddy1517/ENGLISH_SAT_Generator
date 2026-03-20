@@ -1,3 +1,5 @@
+import time
+
 class Craft_and_Structure:
     def __init__(self):
         self.DOMAIN = "Craft and Structure"
@@ -142,7 +144,7 @@ class Craft_and_Structure:
     "option_b": "",
     "option_c": "",
     "option_d": "",
-    "correct_answer": "A",
+    "correct_answer": "A|B|C|D",
     "explanation": ""
     }}
     """
@@ -645,7 +647,7 @@ If PASS:
   "option_b": "",
   "option_c": "",
   "option_d": "",
-  "correct_answer": "A",
+  "correct_answer": ""A|B|C|D",
   "explanation": ""
 }}
 """
@@ -1139,7 +1141,7 @@ If PASS:
   "option_b": "",
   "option_c": "",
   "option_d": "",
-  "correct_answer": "A",
+  "correct_answer": "A|B|C|D",
   "explanation": ""
 }}
 """
@@ -1642,7 +1644,7 @@ If PASS:
   "option_b": "",
   "option_c": "",
   "option_d": "",
-  "correct_answer": "A",
+  "correct_answer": "A|B|C|D",
   "explanation": ""
 }}
 """

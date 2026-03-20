@@ -3,7 +3,10 @@ from src.stateflow import GraphState,QuestionStatus,StandardEnglishState
 from src.content_structure import Craft_and_Structure
 import json
 from src.utils import get_domain_handler
+import mlflow
 
+
+@mlflow.trace
 def validation_node(state: GraphState) -> dict:
 
 
@@ -24,6 +27,15 @@ def validation_node(state: GraphState) -> dict:
             response_format={"type": "json_object"},
             temperature=0.3,
         )
+
+        span = mlflow.get_current_active_span()
+        usage = response.usage
+        if span:
+            span.set_attribute("llm.model", response.model)
+            span.set_attribute("llm.prompt_tokens", usage.prompt_tokens)
+            span.set_attribute("llm.completion_tokens", usage.completion_tokens)
+            span.set_attribute("llm.total_tokens", usage.total_tokens)
+            span.set_attribute("llm.raw_output", response.choices[0].message.content)
         
         parsed_data = json.loads(response.choices[0].message.content)
 
@@ -46,7 +58,7 @@ def validation_node(state: GraphState) -> dict:
          return {**state, "status": QuestionStatus.FAILED.value}
     
 
-
+@mlflow.trace
 def standard_english_validation_node(state: StandardEnglishState) -> StandardEnglishState:
     creator = get_domain_handler(state["domain"])
 
@@ -65,6 +77,15 @@ def standard_english_validation_node(state: StandardEnglishState) -> StandardEng
             response_format={"type": "json_object"},
             temperature=0.3,
         )
+
+        span = mlflow.get_current_active_span()
+        usage = response.usage
+        if span:
+            span.set_attribute("llm.model", response.model)
+            span.set_attribute("llm.prompt_tokens", usage.prompt_tokens)
+            span.set_attribute("llm.completion_tokens", usage.completion_tokens)
+            span.set_attribute("llm.total_tokens", usage.total_tokens)
+            span.set_attribute("llm.raw_output", response.choices[0].message.content)
         
         parsed_data = json.loads(response.choices[0].message.content)
 

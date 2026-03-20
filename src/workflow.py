@@ -7,8 +7,10 @@ from Agents.refinement import refinement_node,standard_english_refinement_node
 from Agents.validation import validation_node,standard_english_validation_node
 import json
 from src.utils import route_standard_english_after_validation,route_passage_after_validation,route_domain
+import mlflow
 
 
+@mlflow.trace
 def finalize_output_node(state: GraphState) -> GraphState:
     if state["domain"] == "Standard English Conventions":
         source_text = state.get("sentence", "")
@@ -20,6 +22,7 @@ def finalize_output_node(state: GraphState) -> GraphState:
         "source_text": source_text
     }
 
+@mlflow.trace
 def sentence_english_subgraph_node(state: GraphState) -> GraphState:
     sub_input: StandardEnglishState = {
         "domain": state["domain"],
@@ -141,6 +144,7 @@ def main_workflow():
         "done": "finalize_output",
         "refine": "passage_refinement",
         "give_up": "finalize_output",
+        "fail":"finalize_output"
     }
 )
 

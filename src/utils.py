@@ -6,7 +6,7 @@ import pandas as pd
 import os
 import random
 import shutil
-
+import uuid
 
 MAX_REVISIONS=3
 
@@ -63,9 +63,19 @@ def route_standard_english_after_validation(state: StandardEnglishState) -> str:
 
 def save_to_excel(state, file_path="Data/sat_items.xlsx"):
 
-    q = state.get("question_data", {}) or {}
+    # -------------------------
+    # 1. Generate unique ID
+    # -------------------------
+    question_id = str(uuid.uuid4())
 
-    row = {
+    q = state.get("question_data", {}) or {}
+    feedback = state.get("validator_feedback", {}) or {}
+
+    # -------------------------
+    # 2. Question Sheet Row
+    # -------------------------
+    question_row = {
+        "question_id": question_id,
         "domain": state.get("domain", ""),
         "question_type": state.get("question_type", ""),
         "difficulty": state.get("difficulty", ""),
@@ -83,13 +93,53 @@ def save_to_excel(state, file_path="Data/sat_items.xlsx"):
         "explanation": q.get("explanation", "")
     }
 
-    df = pd.DataFrame([row])
+    # -------------------------
+    # 3. Feedback Sheet Row
+    # -------------------------
+    quality = feedback.get("quality_summary", {}) or {}
 
+    feedback_row = {
+        "question_id": question_id,
+        "verdict": feedback.get("verdict", ""),
+        "notes": feedback.get("notes", ""),
+
+        "passage_valid": quality.get("passage_valid", ""),
+        "question_valid": quality.get("question_valid", ""),
+        "difficulty_aligned": quality.get("difficulty_aligned", ""),
+        "options_valid": quality.get("options_valid", ""),
+        "correct_answer_valid": quality.get("correct_answer_valid", ""),
+        "explanation_valid": quality.get("explanation_valid", ""),
+        "grammar_valid": quality.get("grammar_valid", "")
+    }
+
+    # -------------------------
+    # 4. Write to Excel (2 sheets)
+    # -------------------------
     if os.path.exists(file_path):
-        df_existing = pd.read_excel(file_path)
-        df = pd.concat([df_existing, df], ignore_index=True)
+        with pd.ExcelWriter(file_path, engine="openpyxl", mode="a", if_sheet_exists="overlay") as writer:
 
-    df.to_excel(file_path, index=False)
+            # Questions sheet
+            try:
+                existing_q = pd.read_excel(file_path, sheet_name="questions")
+                updated_q = pd.concat([existing_q, pd.DataFrame([question_row])], ignore_index=True)
+            except:
+                updated_q = pd.DataFrame([question_row])
+
+            updated_q.to_excel(writer, sheet_name="questions", index=False)
+
+            # Feedback sheet
+            try:
+                existing_f = pd.read_excel(file_path, sheet_name="feedback")
+                updated_f = pd.concat([existing_f, pd.DataFrame([feedback_row])], ignore_index=True)
+            except:
+                updated_f = pd.DataFrame([feedback_row])
+
+            updated_f.to_excel(writer, sheet_name="feedback", index=False)
+
+    else:
+        with pd.ExcelWriter(file_path, engine="openpyxl") as writer:
+            pd.DataFrame([question_row]).to_excel(writer, sheet_name="questions", index=False)
+            pd.DataFrame([feedback_row]).to_excel(writer, sheet_name="feedback", index=False)
 
 
 
