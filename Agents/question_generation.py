@@ -1,5 +1,5 @@
 from tools.auth import client
-from src.stateflow import GraphState,QuestionStatus
+from src.stateflow import GraphState,QuestionStatus,StandardEnglishState
 from src.content_structure import Craft_and_Structure
 import json
 from src.utils import get_domain_handler
@@ -35,7 +35,7 @@ def question_generation_node(state: GraphState) -> dict: # Return a dict to merg
         
         # VALIDATION PASSED
         return {
-            "Question_info": parsed_data,
+            "question_data": parsed_data,
             "status": QuestionStatus.QUESTIONS_GENERATED.value, # "questions_generated"
             "feedback": None 
         }
@@ -43,6 +43,51 @@ def question_generation_node(state: GraphState) -> dict: # Return a dict to merg
     except Exception as e:
         print(f"Error: {e}")
         return {"status": QuestionStatus.FAILED.value}
+    
+
+
+
+def standard_english_question_generation_node(state: StandardEnglishState) -> StandardEnglishState:
+    creator =  get_domain_handler(state["domain"])
+
+    prompt = creator.build_question_prompt(
+        sentence=state["sentence"],
+        editable_portion=state["editable_portion"],
+        question_type=state["question_type"]
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o", # Or gpt-4.1
+            messages=[{"role": "system", "content": prompt}],
+            response_format={"type": "json_object"},
+            temperature=0.7,
+        )
+        
+        parsed_data = json.loads(response.choices[0].message.content)
+        
+        # VALIDATION FAILED
+        if parsed_data.get("verdict") == "FAIL":
+            return {
+                "validator_feedback": parsed_data,
+                "feedback": parsed_data.get("reason", ""),
+                "status": QuestionStatus.PASSAGE_REDO.value, # "Passage_Redo"
+                "iterations": state.get("iterations", 0) + 1
+            }
+        
+        # VALIDATION PASSED
+        return {
+            "question_data": parsed_data,
+            "status": QuestionStatus.QUESTIONS_GENERATED.value, # "questions_generated"
+            "feedback": None 
+        }
+        
+    except Exception as e:
+        print(f"Error: {e}")
+        return {"status": QuestionStatus.FAILED.value}
+    
+
+   
 
     
 if __name__=="__main__":

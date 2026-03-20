@@ -1,5 +1,5 @@
 from tools.auth import client
-from src.stateflow import GraphState,QuestionStatus
+from src.stateflow import GraphState,QuestionStatus,StandardEnglishState
 from src.content_structure import Craft_and_Structure
 import json
 from src.utils import get_domain_handler
@@ -28,12 +28,54 @@ def refinement_node(state: GraphState) -> GraphState:
         return {
             **state,
             "raw_passage": data["passage"],
+            "iterations": state.get("iterations", 0) + 1,
             "status": QuestionStatus.REFINED.value, # Set to a status that routes back to the Question Agent
             "feedback": None      # Clear feedback once addressed
         }
     except Exception as e:
         return {**state, "status": QuestionStatus.FAILED.value}
     
+
+
+
+def standard_english_refinement_node(state: StandardEnglishState) -> StandardEnglishState:
+    creator = get_domain_handler(state["domain"])
+
+    prompt = creator.build_refinement_prompt(
+        sentence=state["sentence"],
+        editable_portion=state["editable_portion"],
+        question_type=state["question_type"],
+        feedback=state["validator_feedback"],
+        difficulty=state["difficulty"]
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4.1", 
+            messages=[{"role": "system", "content": prompt}],
+            response_format={"type": "json_object"}
+        )
+        
+        data = json.loads(response.choices[0].message.content)
+        
+        return {
+        **state,
+        "sentence": data["sentence"],
+        "editable_portion": data["editable_portion"],
+        "iterations": state.get("iterations", 0) + 1,
+        "status": QuestionStatus.REFINED.value,
+    }
+    except Exception as e:
+        return {**state, "status": QuestionStatus.FAILED.value}
+
+    
+
+
+
+
+
+
+
 
 
 if __name__=="__main__":

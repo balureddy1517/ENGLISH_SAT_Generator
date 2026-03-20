@@ -1,6 +1,6 @@
 from tools.auth import client
-from src.stateflow import GraphState,QuestionStatus
-from src.content_structure import Craft_and_Structure
+from src.stateflow import GraphState,QuestionStatus,StandardEnglishState
+from src.content_structure import Craft_and_Structure,Expression_of_Ideas
 import json
 from src.utils import get_domain_handler
 
@@ -44,7 +44,51 @@ def passage_generation_node(state: GraphState) -> GraphState:
             **state, # Keep existing state
             "status": QuestionStatus.FAILED.value,
         }
+    
 
+def standard_english_generation_node(state: StandardEnglishState) -> StandardEnglishState:
+    creator = get_domain_handler(state["domain"])
+
+    prompt = creator.build_prompt(
+        question_type=state["question_type"],
+        difficulty_level=state["difficulty"]
+    )
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4.1", 
+            messages=[
+                {
+                    "role": "system", 
+                    "content": prompt
+                },
+               
+            ],
+            response_format={"type": "json_object"},
+            temperature=0.7,
+        )
+        
+        # response.choices[0].message.content is a STRING that looks like JSON
+        raw_content = response.choices[0].message.content
+        parsed_data = json.loads(raw_content) # Convert string to python dict
+        
+        # Extract the passage from the JSON key we defined in the prompt
+        sentence = parsed_data.get("sentence", "")
+        editable_portion=parsed_data.get("editable_portion","")
+        
+        return {
+        **state,
+        "sentence": sentence,
+        "editable_portion": editable_portion,
+        "status": QuestionStatus.GENERATED.value 
+    }
+        
+    except Exception as e:
+        print(f"Error during passage generation: {e}")
+        return {
+            **state, # Keep existing state
+            "status": QuestionStatus.FAILED.value,
+        }
 
 if __name__=="__main__":
     

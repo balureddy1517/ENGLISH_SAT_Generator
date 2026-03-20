@@ -1,4 +1,4 @@
-from typing import TypedDict, Optional, List, Annotated
+from typing import TypedDict, Optional, List, Annotated,Dict, Any
 from enum import Enum
 from pydantic import BaseModel
 
@@ -15,17 +15,39 @@ from pydantic import BaseModel
 #     n_Questions_to_rewrite: int
 
 
-class GraphState(TypedDict):
-    domain:str
-    raw_passage: str        
-    status: str   
-    question_type: str 
-    Question_info: Optional[dict]
-    feedback: Optional[str]
-    difficulty:str
-    iterations:int
-    validator_feedback:Optional[str]
+class GraphState(TypedDict, total=False):
+    domain: str
+    question_type: str
+    difficulty: str
+    status: str
+    iterations: int
 
+    # Passage-based domains
+    raw_passage: str
+
+    # Standard English domain
+    sentence: str
+    editable_portion: str
+
+    # Shared outputs
+    question_data: Dict[str, Any]
+    validator_feedback: Dict[str, Any]
+    feedback: str
+
+
+
+class StandardEnglishState(TypedDict, total=False):
+    domain: str
+    question_type: str
+    difficulty: str
+    status: str
+    iterations: int
+
+    sentence: str
+    editable_portion: str
+    question_data: Dict[str, Any]
+    validator_feedback: Dict[str, Any]
+    feedback: str
    
 
 class QuestionStatus(Enum):
