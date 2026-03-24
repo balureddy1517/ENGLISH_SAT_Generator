@@ -19,7 +19,7 @@ def refinement_node(state: GraphState) -> GraphState:
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4.1", 
+            model="gpt-5.4-nano", 
             messages=[{"role": "system", "content": prompt}],
             response_format={"type": "json_object"}
         )
@@ -62,7 +62,7 @@ def standard_english_refinement_node(state: StandardEnglishState) -> StandardEng
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4.1", 
+            model="gpt-5.4-nano", 
             messages=[{"role": "system", "content": prompt}],
             response_format={"type": "json_object"}
         )

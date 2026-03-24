@@ -16,13 +16,22 @@ if __name__=="__main__":
     # "status": "INITIALISED",
     # "iterations": 0
     #     }
+#         inputs = {
+#     "domain": "Standard English Conventions",
+#     "question_type": "Boundaries",
+#     "difficulty": "Medium",
+#     "iterations": 0,
+#     "status": "INITIALISED"
+# }
+        
+
         inputs = {
-    "domain": "Standard English Conventions",
-    "question_type": "Boundaries",
-    "difficulty": "Medium",
-    "iterations": 0,
-    "status": "INITIALISED"
-}
+        "domain": "Craft and Structure",   #. "Craft and Structure"
+        "question_type": "Words in Context",
+        "difficulty": "Hard",
+        "iterations": 0,
+        "status": QuestionStatus.INITIALISED.value
+    }
         app = main_workflow()
     
 

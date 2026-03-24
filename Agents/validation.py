@@ -22,7 +22,7 @@ def validation_node(state: GraphState) -> dict:
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4o", # Or gpt-4.1
+            model="gpt-5.4-nano", # Or gpt-4.1
             messages=[{"role": "system", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0.3,
@@ -72,7 +72,7 @@ def standard_english_validation_node(state: StandardEnglishState) -> StandardEng
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4o", # Or gpt-4.1
+            model="gpt-5.4-nano", # Or gpt-4.1
             messages=[{"role": "system", "content": prompt}],
             response_format={"type": "json_object"},
             temperature=0.3,

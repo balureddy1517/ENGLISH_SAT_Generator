@@ -15,7 +15,7 @@ def passage_generation_node(state: GraphState) -> GraphState:
     timestamp = int(time.time())
     try:
         response = client.chat.completions.create(
-            model="gpt-4.1", 
+            model="gpt-5.4-nano", 
             messages=[
                 {
                     "role": "system", 
@@ -72,7 +72,7 @@ def standard_english_generation_node(state: StandardEnglishState) -> StandardEng
 
     try:
         response = client.chat.completions.create(
-            model="gpt-4.1", 
+            model="gpt-5.4-nano", 
             messages=[
                 {
                     "role": "system", 
