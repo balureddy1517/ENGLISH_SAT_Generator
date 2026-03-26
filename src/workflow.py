@@ -76,27 +76,23 @@ def sentence_english_workflow():
         "generate_question",
         should_continue,
     {
-        "refine": "refine_item",
-        "go_for_validation":"validate_item" ,
-        "fail": END
+        "refine": "generate_sentence",
+        "go_for_validation":"validate_item" 
     }
     )
 
-    se_builder.add_edge("refine_item", "generate_question")
     se_builder.add_conditional_edges(
         "validate_item",
         route_standard_english_after_validation,
         {
             "done": END,
+            "refine": END,
             "give_up": END,
-            "fail":END
+            "fail": "refine_item",
         },
     )
-    se_builder.add_edge("validate_item",END)
+    se_builder.add_edge("refine_item", "validate_item")
 
-    
-
-    
 
     sentence_english_app = se_builder.compile()
 
@@ -130,12 +126,13 @@ def main_workflow():
         "passage_question_generation",
         should_continue,
         {
-              "refine": "passage_refinement",
-            "go_for_validation":"passage_validation" ,
-            "fail": END
+              "refine": "passage_generation",
+            "go_for_validation":"passage_validation" 
+           
         }
     )
-    main_builder.add_edge("passage_refinement", "passage_question_generation")
+
+    # main_builder.add_edge("passage_refinement", "passage_question_generation")
 
     main_builder.add_conditional_edges(
     "passage_validation",
@@ -144,9 +141,11 @@ def main_workflow():
         "done": "finalize_output",
         "refine": "passage_refinement",
         "give_up": "finalize_output",
-        "fail":"finalize_output"
+        "fail":"passage_refinement"
     }
 )
+    
+    main_builder.add_edge("passage_refinement", "passage_validation")
 
     main_builder.add_edge("sentence_english_subgraph", "finalize_output")
     main_builder.add_edge("finalize_output", END)

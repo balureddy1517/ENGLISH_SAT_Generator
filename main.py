@@ -8,6 +8,35 @@ mlflow.set_experiment("SAT_Generation_Project")
 
 if __name__=="__main__":
         
+
+
+    inputs = {
+    "domain": "Standard English Conventions",
+    "question_type": "Boundaries",
+    "difficulty": "Medium",
+    "iterations": 0,
+    "status": "INITIALISED"
+}
+
+
+    app = main_workflow()
+    
+
+    with mlflow.start_run(run_name="SAT_Generation_Full_Cycle"):
+        with mlflow.start_span(name="SAT_Graph_Execution") as root_span:
+                final_state=app.invoke(inputs)
+                #  print(final_state) 
+
+    
+
+    #     inputs = {
+#     "domain": "Information and Ideas",   # "Information and Ideas"
+#     "question_type": "DATA_INTERPRETATION",
+#     "difficulty": "Hard",
+#     "iterations": 0,
+#     "status": QuestionStatus.INITIALISED.value
+# }
+        
     #     inputs = {
     # "domain": "Expression of Ideas",
     # "question_type": "Transitions",
@@ -25,22 +54,13 @@ if __name__=="__main__":
 # }
         
 
-        inputs = {
-        "domain": "Craft and Structure",   #. "Craft and Structure"
-        "question_type": "Words in Context",
-        "difficulty": "Hard",
-        "iterations": 0,
-        "status": QuestionStatus.INITIALISED.value
-    }
-        app = main_workflow()
-    
-
-        with mlflow.start_run(run_name="SAT_Generation_Full_Cycle"):
-            with mlflow.start_span(name="SAT_Graph_Execution") as root_span:
-                 final_state=app.invoke(inputs)
-                #  print(final_state) 
-        
-        
+    #     inputs = {
+    #     "domain": "Craft and Structure",   #. "Craft and Structure"
+    #     "question_type": "Words in Context",
+    #     "difficulty": "Hard",
+    #     "iterations": 0,
+    #     "status": QuestionStatus.INITIALISED.value
+    # }
 
 
 

@@ -1,6 +1,7 @@
 from tools.auth import client
 from src.stateflow import GraphState,QuestionStatus,StandardEnglishState
-from src.content_structure import Craft_and_Structure,Expression_of_Ideas
+# from src.content_structure import Craft_and_Structure,Expression_of_Ideas
+from Topic_Content.craft_structure import Craft_and_Structure
 import json
 from src.utils import get_domain_handler
 import time
@@ -11,16 +12,14 @@ import mlflow
 def passage_generation_node(state: GraphState) -> GraphState:
 
     creator = get_domain_handler(state["domain"])
-    prompt = creator.build_prompt(state["question_type"], state["difficulty"])
+    # prompt = creator.build_prompt(state["question_type"], state["difficulty"])
     timestamp = int(time.time())
     try:
         response = client.chat.completions.create(
             model="gpt-5.4-nano", 
             messages=[
-                {
-                    "role": "system", 
-                    "content": prompt
-                },
+                {"role": "system", "content": creator.build_passage_system_prompt()},
+    {"role": "user", "content": creator.build_passage_user_prompt(state["question_type"], state["difficulty"])}
                
             ],
             response_format={"type": "json_object"},
@@ -65,19 +64,14 @@ def passage_generation_node(state: GraphState) -> GraphState:
 def standard_english_generation_node(state: StandardEnglishState) -> StandardEnglishState:
     creator = get_domain_handler(state["domain"])
 
-    prompt = creator.build_prompt(
-        question_type=state["question_type"],
-        difficulty_level=state["difficulty"]
-    )
+    
 
     try:
         response = client.chat.completions.create(
             model="gpt-5.4-nano", 
             messages=[
-                {
-                    "role": "system", 
-                    "content": prompt
-                },
+                {"role": "system", "content": creator.build_system_prompt()},
+    {"role": "user", "content": creator.build_user_prompt(question_type=state["question_type"], difficulty_level=state["difficulty"])}
                
             ],
             response_format={"type": "json_object"},

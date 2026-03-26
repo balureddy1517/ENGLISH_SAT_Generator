@@ -1,6 +1,7 @@
 from tools.auth import client
 from src.stateflow import GraphState,QuestionStatus,StandardEnglishState
-from src.content_structure import Craft_and_Structure
+# from src.content_structure import Craft_and_Structure
+from Topic_Content.craft_structure import Craft_and_Structure
 import json
 from src.utils import get_domain_handler
 import mlflow
@@ -8,64 +9,117 @@ import mlflow
 @mlflow.trace
 def refinement_node(state: GraphState) -> GraphState:
     creator = get_domain_handler(state["domain"])
-    
-    # Generate the prompt using the existing passage and the feedback captured earlier
-    prompt = creator.build_refinement_prompt(
-        passage=state["raw_passage"],
-        question_type=state["question_type"],
-        feedback=state["feedback"],
-        difficulty=state.get("difficulty", "Medium")
-    )
-    
+
+    max_refinements = 3
+    current_iterations = state.get("iterations", 0)
+
+    # Stop refinement if limit is reached
+    if current_iterations >= max_refinements:
+        return {
+            **state,
+            "status": QuestionStatus.Iterations.value,   # or GIVE_UP if you have that status
+            "summary_refinement": "Refinement limit reached.",
+        }
+
     try:
         response = client.chat.completions.create(
-            model="gpt-5.4-nano", 
-            messages=[{"role": "system", "content": prompt}],
-            response_format={"type": "json_object"}
+            model="gpt-5.4-nano",
+            messages=[
+                {"role": "system", "content": creator.build_refinement_system_prompt()},
+                {
+                    "role": "user",
+                    "content": creator.build_refinement_user_prompt(
+                        passage=state["raw_passage"],
+                        question_type=state["question_type"],
+                        feedback=state["validator_feedback"],
+                        difficulty=state.get("difficulty", "Medium"),
+                        question_data=state["question_data"],
+                    ),
+                },
+            ],
+            response_format={"type": "json_object"},
         )
 
         span = mlflow.get_current_active_span()
         usage = response.usage
-        if span:
+        if span and usage:
             span.set_attribute("llm.model", response.model)
             span.set_attribute("llm.prompt_tokens", usage.prompt_tokens)
             span.set_attribute("llm.completion_tokens", usage.completion_tokens)
             span.set_attribute("llm.total_tokens", usage.total_tokens)
             span.set_attribute("llm.raw_output", response.choices[0].message.content)
 
-
         data = json.loads(response.choices[0].message.content)
-        
+        question_data = extract_question_data(data)
+
         return {
             **state,
-            "raw_passage": data["passage"],
-            "iterations": state.get("iterations", 0) + 1,
-            "status": QuestionStatus.REFINED.value, # Set to a status that routes back to the Question Agent
-            "feedback": None      # Clear feedback once addressed
+            "raw_passage": data.get("passage", state["raw_passage"]),
+            "question_data": question_data,
+            "iterations": current_iterations + 1,
+            "status": QuestionStatus.REFINED.value,
+            "validator_feedback": None,
+            "feedback":None,
+            "summary_refinement": data.get("revision_summary", ""),
         }
-    except Exception as e:
-        return {**state, "status": QuestionStatus.FAILED.value}
-    
+
+    except Exception:
+        return {
+            **state,
+            "status": QuestionStatus.FAILED.value,
+        }
+
+def extract_question_data(item_json: dict) -> dict:
+    question_data = {
+        "question": item_json.get("question", ""),
+        "option_a": item_json.get("option_a", ""),
+        "option_b": item_json.get("option_b", ""),
+        "option_c": item_json.get("option_c", ""),
+        "option_d": item_json.get("option_d", ""),
+        "correct_answer": item_json.get("correct_answer", ""),
+        "explanation": item_json.get("explanation", "")
+        
+    }
+    return question_data
 
 
 @mlflow.trace
 def standard_english_refinement_node(state: StandardEnglishState) -> StandardEnglishState:
     creator = get_domain_handler(state["domain"])
 
-    prompt = creator.build_refinement_prompt(
-        sentence=state["sentence"],
-        editable_portion=state["editable_portion"],
-        question_type=state["question_type"],
-        feedback=state["validator_feedback"],
-        difficulty=state["difficulty"]
-    )
+
+    max_refinements = 3
+    current_iterations = state.get("iterations", 0)
+
+    # Stop refinement if limit is reached
+    if current_iterations >= max_refinements:
+        return {
+            **state,
+            "status": QuestionStatus.Iterations.value,   # or GIVE_UP if you have that status
+            "summary_refinement": "Refinement limit reached.",
+        }
+
 
     try:
         response = client.chat.completions.create(
             model="gpt-5.4-nano", 
-            messages=[{"role": "system", "content": prompt}],
+             messages=[
+                {"role": "system", "content": creator.build_refinement_system_prompt()},
+                {
+                    "role": "user",
+                    "content": creator.build_refinement_user_prompt(
+                         sentence=state["sentence"],
+                        editable_portion=state["editable_portion"],
+                        question_type=state["question_type"],
+                        feedback=state["validator_feedback"],
+                        difficulty=state["difficulty"],
+                        question_data=state["question_data"]
+                    ),
+                },
+            ],
             response_format={"type": "json_object"}
         )
+
 
         span = mlflow.get_current_active_span()
         usage = response.usage
@@ -77,18 +131,24 @@ def standard_english_refinement_node(state: StandardEnglishState) -> StandardEng
             span.set_attribute("llm.raw_output", response.choices[0].message.content)
         
         data = json.loads(response.choices[0].message.content)
+        question_data = extract_question_data(data)
         
         return {
         **state,
         "sentence": data["sentence"],
         "editable_portion": data["editable_portion"],
+        "question_data":question_data,
         "iterations": state.get("iterations", 0) + 1,
         "status": QuestionStatus.REFINED.value,
+        "validator_feedback": None,
+        "feedback":None,
+        "summary_refinement": data.get("changes_made", ""),
     }
     except Exception as e:
         return {**state, "status": QuestionStatus.FAILED.value}
 
     
+
 
 
 

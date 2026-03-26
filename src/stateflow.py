@@ -34,6 +34,9 @@ class GraphState(TypedDict, total=False):
     validator_feedback: Dict[str, Any]
     feedback: str
 
+    #revision
+    summary_refinement: str
+
 
 
 class StandardEnglishState(TypedDict, total=False):
@@ -62,4 +65,5 @@ class QuestionStatus(Enum):
     # PASSED_FINAL = "passed_final"
     FAILED="Failed"
     REVIEW_SUCCESS="review_success"
+    Iterations="finished_iterations"
 

@@ -1,6 +1,7 @@
 from tools.auth import client
 from src.stateflow import GraphState,QuestionStatus,StandardEnglishState
-from src.content_structure import Craft_and_Structure
+# from src.content_structure import Craft_and_Structure
+from Topic_Content.craft_structure import Craft_and_Structure
 import json
 from src.utils import get_domain_handler
 import mlflow
@@ -11,15 +12,20 @@ def question_generation_node(state: GraphState) -> dict: # Return a dict to merg
     creator = get_domain_handler(state["domain"])
     q_type = state.get("question_type")
     
-    prompt = creator.build_question_prompt(
-        passage=state["raw_passage"], 
-        question_type=q_type 
-    )
+    # prompt = creator.build_question_prompt(
+    #     passage=state["raw_passage"], 
+    #     question_type=q_type 
+    # )
     
     try:
         response = client.chat.completions.create(
             model="gpt-5.4-nano", # Or gpt-4.1
-            messages=[{"role": "system", "content": prompt}],
+            messages=[
+                {"role": "system", "content": creator.build_question_system_prompt()},
+    {"role": "user", "content": creator.build_question_user_prompt( passage=state["raw_passage"], question_type=q_type  )}
+               
+            ],
+           
             response_format={"type": "json_object"},
             temperature=0.7,
         )
@@ -42,7 +48,7 @@ def question_generation_node(state: GraphState) -> dict: # Return a dict to merg
             return {
                 "feedback": parsed_data,
                 "status": QuestionStatus.PASSAGE_REDO.value, # "Passage_Redo"
-                "iterations": state.get("iterations", 0) + 1
+                # "iterations": state.get("iterations", 0) + 1
             }
         
         # VALIDATION PASSED
@@ -62,16 +68,22 @@ def question_generation_node(state: GraphState) -> dict: # Return a dict to merg
 def standard_english_question_generation_node(state: StandardEnglishState) -> StandardEnglishState:
     creator =  get_domain_handler(state["domain"])
 
-    prompt = creator.build_question_prompt(
-        sentence=state["sentence"],
-        editable_portion=state["editable_portion"],
-        question_type=state["question_type"]
-    )
+    # prompt = creator.build_question_prompt(
+    #     sentence=state["sentence"],
+    #     editable_portion=state["editable_portion"],
+    #     question_type=state["question_type"]
+    # )
 
-    try:
+    try:  #build_sentence_english_question_system_prompt
         response = client.chat.completions.create(
             model="gpt-5.4-nano", # Or gpt-4.1
-            messages=[{"role": "system", "content": prompt}],
+           messages=[
+                {"role": "system", "content": creator.build_question_system_prompt()},
+    {"role": "user", "content": creator.build_question_user_prompt( sentence=state["sentence"],
+        editable_portion=state["editable_portion"],
+        question_type=state["question_type"] )}
+               
+            ],
             response_format={"type": "json_object"},
             temperature=0.7,
         )
@@ -93,10 +105,9 @@ def standard_english_question_generation_node(state: StandardEnglishState) -> St
         # VALIDATION FAILED
         if parsed_data.get("verdict") == "FAIL":
             return {
-                "validator_feedback": parsed_data,
-                "feedback": parsed_data.get("reason", ""),
+                "feedback": parsed_data,
                 "status": QuestionStatus.PASSAGE_REDO.value, # "Passage_Redo"
-                "iterations": state.get("iterations", 0) + 1
+                # "iterations": state.get("iterations", 0) + 1
             }
         
         # VALIDATION PASSED

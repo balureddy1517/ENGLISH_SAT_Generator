@@ -1,4 +1,9 @@
-from src.content_structure import Craft_and_Structure,Information_and_Ideas,Standard_English_Conventions,Expression_of_Ideas
+# from src.content_structure import Standard_English_Conventions,Expression_of_Ideas
+from Topic_Content.craft_structure import Craft_and_Structure
+from Topic_Content.information_structure import Information_and_Ideas
+from Topic_Content.standard_structure import Standard_English_Conventions
+from Topic_Content.expression_structure import Expression_of_Ideas
+
 from src.stateflow import GraphState,StandardEnglishState
 from openpyxl import Workbook, load_workbook
 from pathlib import Path

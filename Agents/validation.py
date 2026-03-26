@@ -1,6 +1,7 @@
 from tools.auth import client
 from src.stateflow import GraphState,QuestionStatus,StandardEnglishState
-from src.content_structure import Craft_and_Structure
+# from src.content_structure import Craft_and_Structure
+from Topic_Content.craft_structure import Craft_and_Structure
 import json
 from src.utils import get_domain_handler
 import mlflow
@@ -13,19 +14,26 @@ def validation_node(state: GraphState) -> dict:
     creator = get_domain_handler(state["domain"])
     # q_type = state.get("question_type")
     
-    prompt = creator.build_validation_prompt(
-        passage=state["raw_passage"], 
-        question_type=state["question_type"] ,
-        difficulty=state["difficulty"],
-        question_data=state["question_data"]
-    )
+    # prompt = creator.build_validation_prompt(
+    #     passage=state["raw_passage"], 
+    #     question_type=state["question_type"] ,
+    #     difficulty=state["difficulty"],
+    #     question_data=state["question_data"]
+    # )
     
     try:
         response = client.chat.completions.create(
             model="gpt-5.4-nano", # Or gpt-4.1
-            messages=[{"role": "system", "content": prompt}],
+            messages = [
+    {"role": "system", "content": creator.build_validation_system_prompt()},
+    {"role": "user", "content": creator.build_validation_user_prompt(
+         passage=state["raw_passage"], 
+        question_type=state["question_type"] ,
+        difficulty=state["difficulty"],
+        question_data=state["question_data"]
+    )}
+],
             response_format={"type": "json_object"},
-            temperature=0.3,
         )
 
         span = mlflow.get_current_active_span()
@@ -62,20 +70,31 @@ def validation_node(state: GraphState) -> dict:
 def standard_english_validation_node(state: StandardEnglishState) -> StandardEnglishState:
     creator = get_domain_handler(state["domain"])
 
-    prompt = creator.build_validation_prompt(
-        sentence=state["sentence"],
+    # prompt = creator.build_validation_prompt(
+    #     sentence=state["sentence"],
+    #     editable_portion=state["editable_portion"],
+    #     question_data=state["question_data"],
+    #     question_type=state["question_type"],
+    #     difficulty=state["difficulty"]
+    # )
+
+    try:
+        
+
+        response = client.chat.completions.create(
+            model="gpt-5.4-nano", # Or gpt-4.1
+            messages = [
+    {"role": "system", "content": creator.build_validation_system_prompt()},
+    {"role": "user", "content": creator.build_validation_user_prompt(
+          sentence=state["sentence"],
         editable_portion=state["editable_portion"],
         question_data=state["question_data"],
         question_type=state["question_type"],
         difficulty=state["difficulty"]
-    )
-
-    try:
-        response = client.chat.completions.create(
-            model="gpt-5.4-nano", # Or gpt-4.1
-            messages=[{"role": "system", "content": prompt}],
-            response_format={"type": "json_object"},
-            temperature=0.3,
+    )}
+],
+            response_format={"type": "json_object"}
+            
         )
 
         span = mlflow.get_current_active_span()
