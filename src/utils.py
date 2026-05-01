@@ -12,6 +12,8 @@ import os
 import random
 import shutil
 import uuid
+import re
+from difflib import SequenceMatcher
 
 MAX_REVISIONS=3
 
@@ -39,30 +41,33 @@ def route_domain(state: GraphState) -> str:
     
 
 def route_passage_after_validation(state: GraphState) -> str:
-    if state["status"] == "validated":
+    status = state.get("status", "").lower()
+
+    if status == "validated":
         return "done"
-    
-    if state["status"]=="failed_validation" or state["status"]=="Failed":
-        return "fail"
 
     if state.get("iterations", 0) >= MAX_REVISIONS:
         return "give_up"
 
-    return "refine"
+    if status in {"failed_validation",  "fail"}:
+        return "refine"
+
+    return "fail"
 
 
 def route_standard_english_after_validation(state: StandardEnglishState) -> str:
-    if state["status"] == "validated":
-        return "done"
-    
-    if state["status"]=="failed_validation" or state["status"]=="Failed":
-        return "fail"
+    status = state.get("status", "").lower()
 
+    if status == "validated":
+        return "done"
 
     if state.get("iterations", 0) >= MAX_REVISIONS:
         return "give_up"
 
-    return "refine"
+    if status in {"failed_validation", "fail"}:
+        return "refine"
+
+    return "fail"
 
 
 
@@ -208,3 +213,82 @@ def shuffle_mcq_excel(input_file, output_file):
     df.to_excel(output_file, index=False)
 
 
+############################################################### similarity check ###################################################
+MAX_RECENT_ITEMS = 5
+MAX_GENERATION_RETRIES = 3
+SIMILARITY_THRESHOLD = 0.85
+
+
+def normalize_text(text: str) -> str:
+    text = (text or "").lower().strip()
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def is_too_similar(new_text: str, recent_items: list[str], threshold: float = SIMILARITY_THRESHOLD) -> bool:
+    new_text_norm = normalize_text(new_text)
+
+    if not new_text_norm:
+        return False
+
+    for old_text in recent_items[-MAX_RECENT_ITEMS:]:
+        old_text_norm = normalize_text(old_text)
+
+        if new_text_norm == old_text_norm:
+            return True
+
+        similarity = SequenceMatcher(None, new_text_norm, old_text_norm).ratio()
+        if similarity >= threshold:
+            return True
+
+    return False
+
+
+def update_recent_items(recent_items: list[str], new_text: str, max_size: int = MAX_RECENT_ITEMS) -> list[str]:
+    recent_items = recent_items or []
+    updated = recent_items + [new_text]
+    return updated[-max_size:]
+
+
+
+################################ saving to excel
+
+def final_state_to_row(final_state: dict) -> dict:
+    q = final_state.get("question_data", {}) or {}
+
+    return {
+        "domain": final_state.get("domain", ""),
+        "question_type": final_state.get("question_type", ""),
+        "difficulty": final_state.get("difficulty", ""),
+        "status": final_state.get("status", ""),
+
+        "raw_passage": final_state.get("raw_passage", ""),
+        "sentence": final_state.get("sentence", ""),
+        "editable_portion": final_state.get("editable_portion", ""),
+
+        "question": q.get("question", ""),
+        "option_a": q.get("option_a", ""),
+        "option_b": q.get("option_b", ""),
+        "option_c": q.get("option_c", ""),
+        "option_d": q.get("option_d", ""),
+        "correct_answer": q.get("correct_answer", ""),
+        "explanation": q.get("explanation", ""),
+
+        "summary_refinement": final_state.get("summary_refinement", ""),
+        "validator_feedback": final_state.get("validator_feedback", ""),
+        "iterations": final_state.get("iterations", 0),
+    }
+
+
+def append_results_to_excel(results: list[dict], file_path: str = "sat_generation_results.xlsx"):
+    rows = [final_state_to_row(r) for r in results]
+    df_new = pd.DataFrame(rows)
+
+    if os.path.exists(file_path):
+        df_old = pd.read_excel(file_path)
+        df_final = pd.concat([df_old, df_new], ignore_index=True)
+    else:
+        df_final = df_new
+
+    df_final.to_excel(file_path, index=False)
+    print(f"Saved {len(df_new)} new rows to {file_path}")

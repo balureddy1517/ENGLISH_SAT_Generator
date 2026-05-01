@@ -86,9 +86,9 @@ def sentence_english_workflow():
         route_standard_english_after_validation,
         {
             "done": END,
-            "refine": END,
-            "give_up": END,
-            "fail": "refine_item",
+        "refine": "refine_item",
+        "give_up": END,
+        "fail": END,
         },
     )
     se_builder.add_edge("refine_item", "validate_item")
@@ -141,7 +141,7 @@ def main_workflow():
         "done": "finalize_output",
         "refine": "passage_refinement",
         "give_up": "finalize_output",
-        "fail":"passage_refinement"
+        "fail": "finalize_output",
     }
 )
     

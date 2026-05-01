@@ -75,7 +75,7 @@ class Standard_English_Conventions:
     """
 
 
-    def build_user_prompt(self, question_type: str, difficulty_level: str) -> str:
+    def build_user_prompt(self, question_type: str, difficulty_level: str,recent_items: list[str] = None) -> str:
         difficulty_mapping = {
             "Easy": "Grades 6-8",
             "Medium": "Grades 9-11",
@@ -84,6 +84,14 @@ class Standard_English_Conventions:
 
         reading_band = difficulty_mapping.get(difficulty_level, "Grades 9-11")
         spec = self._get_type_specs(question_type)
+        recent_block = ""
+        if recent_items:
+            recent_examples = "\n".join(f"- {item}" for item in recent_items[-5:])
+            recent_block = f"""
+    AVOID REPETITION
+    Do not generate a passage too similar in topic, structure, logic, or wording to these recent passages:
+    {recent_examples}
+    """
 
         return f"""
     question_type: {question_type}
@@ -92,6 +100,12 @@ class Standard_English_Conventions:
 
     requirements:
     {spec}
+{recent_block}
+INSTRUCTIONS
+Generate one original SAT-style informational passage that matches the requested question type and difficulty.
+Use only the requested reading level and passage architecture.
+Do not reuse or closely imitate the recent passages listed above.
+Return JSON only.
 """
     
     def build_question_system_prompt(self) -> str:

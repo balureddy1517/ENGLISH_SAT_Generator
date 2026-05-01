@@ -3,111 +3,140 @@ from src.stateflow import GraphState,QuestionStatus,StandardEnglishState
 # from src.content_structure import Craft_and_Structure,Expression_of_Ideas
 from Topic_Content.craft_structure import Craft_and_Structure
 import json
-from src.utils import get_domain_handler
+from src.utils import get_domain_handler,is_too_similar,update_recent_items,MAX_GENERATION_RETRIES
 import time
 import mlflow
 
 
 @mlflow.trace
 def passage_generation_node(state: GraphState) -> GraphState:
-
     creator = get_domain_handler(state["domain"])
-    # prompt = creator.build_prompt(state["question_type"], state["difficulty"])
-    timestamp = int(time.time())
+    recent_items = state.get("recent_items", [])
+
     try:
-        response = client.chat.completions.create(
-            model="gpt-5.4-nano", 
-            messages=[
-                {"role": "system", "content": creator.build_passage_system_prompt()},
-    {"role": "user", "content": creator.build_passage_user_prompt(state["question_type"], state["difficulty"])}
-               
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.7,
-        )
-        span = mlflow.get_current_active_span()
-        usage = response.usage
-        if span:
-            span.set_attribute("llm.model", response.model)
-            span.set_attribute("llm.prompt_tokens", usage.prompt_tokens)
-            span.set_attribute("llm.completion_tokens", usage.completion_tokens)
-            span.set_attribute("llm.total_tokens", usage.total_tokens)
-            
-            # 2. LOG THE RAW OUTPUT FOR AUDIT
-            # This is safer than logging to a file because it stays inside the trace
-            span.set_attribute("llm.raw_output", response.choices[0].message.content)
-        
-        # response.choices[0].message.content is a STRING that looks like JSON
-        raw_content = response.choices[0].message.content
-        parsed_data = json.loads(raw_content) # Convert string to python dict
-        
-        # Extract the passage from the JSON key we defined in the prompt
-        passage_text = parsed_data.get("passage", "")
-        question_type=parsed_data.get("type","")
-        
+        for attempt in range(MAX_GENERATION_RETRIES):
+            response = client.chat.completions.create(
+                model="gpt-5.4-nano",
+                messages=[
+                    {"role": "system", "content": creator.build_passage_system_prompt()},
+                    {
+                        "role": "user",
+                        "content": creator.build_passage_user_prompt(
+                            state["question_type"],
+                            state["difficulty"]
+                        ),
+                    },
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.7,
+            )
+
+            span = mlflow.get_current_active_span()
+            usage = response.usage
+            if span and usage:
+                span.set_attribute("llm.model", response.model)
+                span.set_attribute("llm.prompt_tokens", usage.prompt_tokens)
+                span.set_attribute("llm.completion_tokens", usage.completion_tokens)
+                span.set_attribute("llm.total_tokens", usage.total_tokens)
+                span.set_attribute("llm.raw_output", response.choices[0].message.content)
+
+            raw_content = response.choices[0].message.content
+            parsed_data = json.loads(raw_content)
+
+            passage_text = parsed_data.get("passage", "").strip()
+            question_type = parsed_data.get("type", state["question_type"])
+
+            if not passage_text:
+                continue
+
+            if is_too_similar(passage_text, recent_items):
+                print(f"[passage_generation_node] Similar passage detected. Retrying {attempt + 1}/{MAX_GENERATION_RETRIES}")
+                continue
+
+            return {
+                **state,
+                "raw_passage": passage_text,
+                "question_type": question_type,
+                "recent_items": update_recent_items(recent_items, passage_text),
+                "status": QuestionStatus.GENERATED.value,
+            }
+
         return {
-            **state,             # This now works because 'state' is a dict
-            "raw_passage": passage_text,
-            "question_type":question_type,
-            "status": QuestionStatus.GENERATED.value 
+            **state,
+            "status": QuestionStatus.FAILED.value,
+            "validator_feedback": "Failed to generate a sufficiently distinct passage after multiple attempts.",
         }
-        
+
     except Exception as e:
         print(f"Error during passage generation: {e}")
         return {
-            **state, # Keep existing state
+            **state,
             "status": QuestionStatus.FAILED.value,
         }
-    
 
 @mlflow.trace
 def standard_english_generation_node(state: StandardEnglishState) -> StandardEnglishState:
     creator = get_domain_handler(state["domain"])
-
-    
+    recent_items = state.get("recent_items", [])
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-5.4-nano", 
-            messages=[
-                {"role": "system", "content": creator.build_system_prompt()},
-    {"role": "user", "content": creator.build_user_prompt(question_type=state["question_type"], difficulty_level=state["difficulty"])}
-               
-            ],
-            response_format={"type": "json_object"},
-            temperature=0.7,
-        )
-        span = mlflow.get_current_active_span()
-        usage = response.usage
-        if span:
-            span.set_attribute("llm.model", response.model)
-            span.set_attribute("llm.prompt_tokens", usage.prompt_tokens)
-            span.set_attribute("llm.completion_tokens", usage.completion_tokens)
-            span.set_attribute("llm.total_tokens", usage.total_tokens)
-            
-            # 2. LOG THE RAW OUTPUT FOR AUDIT
-            # This is safer than logging to a file because it stays inside the trace
-            span.set_attribute("llm.raw_output", response.choices[0].message.content)
-            
-        # response.choices[0].message.content is a STRING that looks like JSON
-        raw_content = response.choices[0].message.content
-        parsed_data = json.loads(raw_content) # Convert string to python dict
-        
-        # Extract the passage from the JSON key we defined in the prompt
-        sentence = parsed_data.get("sentence", "")
-        editable_portion=parsed_data.get("editable_portion","")
-        
+        for attempt in range(MAX_GENERATION_RETRIES):
+            response = client.chat.completions.create(
+                model="gpt-5.4-nano",
+                messages=[
+                    {"role": "system", "content": creator.build_system_prompt()},
+                    {
+                        "role": "user",
+                        "content": creator.build_user_prompt(
+                            question_type=state["question_type"],
+                            difficulty_level=state["difficulty"]
+                        ),
+                    },
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.7,
+            )
+
+            span = mlflow.get_current_active_span()
+            usage = response.usage
+            if span and usage:
+                span.set_attribute("llm.model", response.model)
+                span.set_attribute("llm.prompt_tokens", usage.prompt_tokens)
+                span.set_attribute("llm.completion_tokens", usage.completion_tokens)
+                span.set_attribute("llm.total_tokens", usage.total_tokens)
+                span.set_attribute("llm.raw_output", response.choices[0].message.content)
+
+            raw_content = response.choices[0].message.content
+            parsed_data = json.loads(raw_content)
+
+            sentence = parsed_data.get("sentence", "").strip()
+            editable_portion = parsed_data.get("editable_portion", "").strip()
+
+            if not sentence:
+                continue
+
+            if is_too_similar(sentence, recent_items):
+                print(f"[standard_english_generation_node] Similar sentence detected. Retrying {attempt + 1}/{MAX_GENERATION_RETRIES}")
+                continue
+
+            return {
+                **state,
+                "sentence": sentence,
+                "editable_portion": editable_portion,
+                "recent_items": update_recent_items(recent_items, sentence),
+                "status": QuestionStatus.GENERATED.value,
+            }
+
         return {
-        **state,
-        "sentence": sentence,
-        "editable_portion": editable_portion,
-        "status": QuestionStatus.GENERATED.value 
-    }
-        
+            **state,
+            "status": QuestionStatus.FAILED.value,
+            "validator_feedback": "Failed to generate a sufficiently distinct sentence after multiple attempts.",
+        }
+
     except Exception as e:
-        print(f"Error during passage generation: {e}")
+        print(f"Error during sentence generation: {e}")
         return {
-            **state, # Keep existing state
+            **state,
             "status": QuestionStatus.FAILED.value,
         }
 

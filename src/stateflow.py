@@ -38,6 +38,10 @@ class GraphState(TypedDict, total=False):
     summary_refinement: str
 
 
+    #memory
+    recent_items: List[str]
+
+
 
 class StandardEnglishState(TypedDict, total=False):
     domain: str
@@ -51,6 +55,8 @@ class StandardEnglishState(TypedDict, total=False):
     question_data: Dict[str, Any]
     validator_feedback: Dict[str, Any]
     feedback: str
+
+    recent_items: List[str]
    
 
 class QuestionStatus(Enum):
